@@ -160,6 +160,42 @@ services:
       - qdrant_storage:/qdrant/storage
 
   # ===========================================
+  # Admo - ServiceNow XML Processing
+  # ===========================================
+  # Optional local microservice for ServiceNow XML intake and normalization.
+  # Accessible at http://localhost:${ADMO_PORT:-8000}
+  # Uses profile: admo
+  admo:
+    profiles: ["admo"]
+    build:
+      context: ${ADMO_REPO_PATH:-../Admo}
+    hostname: admo
+    container_name: admo
+    networks: ['demo']
+    restart: unless-stopped
+    ports:
+      - "${ADMO_PORT:-8000}:8000"
+    environment:
+      - KNOWLEDGE_PROJECT_ROOT=/knowledge
+      - ALLOW_NETWORK=false
+      - RETRIEVAL_MODE=local_only
+      - VECTOR_DB_BACKEND=qdrant_local
+      - VECTOR_DB_PATH=/knowledge/index/qdrant
+      - QDRANT_COLLECTION=${ADMO_QDRANT_COLLECTION:-admo_servicenow_xml}
+      - RETRIEVAL_PAYLOAD_PATH=/knowledge/retrieval/payloads/qdrant
+      - RETRIEVAL_PAYLOAD_FORMAT=qdrant_points_v1
+      - RETRIEVAL_CONFIG_PATH=/knowledge/retrieval/configs
+      - RETRIEVAL_REPORT_PATH=/knowledge/retrieval/reports
+    volumes:
+      - ${ADMO_KNOWLEDGE_ROOT:-../Admo-Knowledge-Project}:/knowledge
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ===========================================
   # Static File Server - Serves shared folder
   # ===========================================
   # Access files at http://localhost:8080/

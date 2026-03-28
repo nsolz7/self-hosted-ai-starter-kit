@@ -1,4 +1,4 @@
-# Self-hosted AI starter kit (incl. Docling)
+# Self-hosted AI starter kit (incl. Docling, optional Admo)
 
 **Self-hosted AI Starter Kit** is an open-source Docker Compose template designed to swiftly initialize a comprehensive local AI and low-code development environment.
 
@@ -32,6 +32,8 @@ Engineering world, handles large amounts of data safely.
 ✅ [**Docling**](https://www.docling.ai/) - OCR and document parsing service for extracting structured data from documents
 
 ✅ **Static File Server** - Nginx-based file server that serves the shared folder, accessible at http://localhost:8080
+
+🧩 [**Admo**](https://github.com/nsolz7/Admo) - Optional local ServiceNow XML microservice that complements Docling instead of replacing it
 
 ### What you can build
 
@@ -150,6 +152,52 @@ language model and Qdrant as your vector store.
 > workflows. While it’s not fully optimized for production environments, it
 > combines robust components that work well together for proof-of-concept
 > projects. You can customize it to meet your specific needs
+
+## Optional Admo integration
+
+This fork can also run [Admo](https://github.com/nsolz7/Admo) as a sibling local service for ServiceNow XML.
+
+Keep the responsibilities split clean:
+
+- `n8n` orchestrates workflow routing
+- `Docling` handles non-ServiceNow documents such as PDFs, DOCX, PPTX, and images
+- `Admo` handles ServiceNow XML exports only
+- `Qdrant` remains the shared retrieval backend
+
+### Setup
+
+Clone Admo next to this repo and keep its Knowledge Project root outside both repositories:
+
+```bash
+git clone https://github.com/nsolz7/Admo.git ../Admo
+cp .env.example .env
+```
+
+Then confirm these variables in `.env`:
+
+```bash
+ADMO_REPO_PATH=../Admo
+ADMO_KNOWLEDGE_ROOT=../Admo-Knowledge-Project
+ADMO_PORT=8000
+ADMO_QDRANT_COLLECTION=admo_servicenow_xml
+```
+
+Start the stack with the `admo` profile in addition to your normal Docling/Ollama profile:
+
+```bash
+docker compose --profile cpu --profile admo up
+```
+
+Inside the compose network, n8n can call Admo at `http://admo:8000`.
+
+### Routing model
+
+- Route ServiceNow XML exports to `POST /api/v1/imports/xml` on Admo.
+- Route other local document types to Docling.
+- Let Admo generate normalized XML-derived artifacts and staged Qdrant-ready payload files under its external Knowledge Project root.
+- Let the larger n8n workflow handle any later embedding and Qdrant upsert steps.
+
+Admo is intentionally not mounted into the starter kit `./shared` folder by default. Use the Admo API as the service boundary and keep Admo’s Knowledge Project root separate from the starter kit’s generic shared workspace.
 
 ## Upgrading
 
