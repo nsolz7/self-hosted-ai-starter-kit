@@ -1,0 +1,12 @@
+# Temporary override for setup-time internet access only.
+# Use this before sensitive data is present if you intentionally need to pull
+# models or perform another audited setup-time download from inside a container.
+#
+# Example:
+# docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile cpu up -d ollama-cpu
+# docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile cpu exec ollama-cpu ollama pull llama3.2
+# docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
+
+networks:
+  demo:
+    internal: false

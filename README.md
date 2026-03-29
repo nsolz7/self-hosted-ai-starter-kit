@@ -3,10 +3,9 @@
 **Self-hosted AI Starter Kit** is an open-source Docker Compose template designed to swiftly initialize a comprehensive local AI and low-code development environment.
 
 > [NOTE]
-> This is a fork maintained by [theaiautomators](https://github.com/theaiautomators).
-> Original repository: [n8n-io/self-hosted-ai-starter-kit](https://github.com/n8n-io/self-hosted-ai-starter-kit)
+> This repository is a fork of [n8n-io/self-hosted-ai-starter-kit](https://github.com/n8n-io/self-hosted-ai-starter-kit).
 
-![n8n.io - Screenshot](https://raw.githubusercontent.com/n8n-io/self-hosted-ai-starter-kit/main/assets/n8n-demo.gif)
+![n8n.io - Screenshot](assets/n8n-demo.gif)
 
 Curated by <https://github.com/n8n-io>, it combines the self-hosted n8n
 platform with a curated list of compatible AI products and components to
@@ -21,7 +20,7 @@ quickly get started with building self-hosted AI workflows.
 integrations and advanced AI components
 
 ✅ [**Ollama**](https://ollama.com/) - Cross-platform LLM platform to install
-and run the latest local LLMs
+and run local LLMs
 
 ✅ [**Qdrant**](https://qdrant.tech/) - Open-source, high performance vector
 store with an comprehensive API
@@ -39,20 +38,40 @@ Engineering world, handles large amounts of data safely.
 
 ⭐️ **AI Agents** for scheduling appointments
 
-⭐️ **Summarize Company PDFs** securely without data leaks
+⭐️ **Summarize Company PDFs** in a local-first stack
 
 ⭐️ **Smarter Slack Bots** for enhanced company communications and IT operations
 
-⭐️ **Private Financial Document Analysis** at minimal cost
+⭐️ **Local Financial Document Analysis** at minimal cost
+
+## Security-first local-only mode
+
+The default Compose configuration in this repo is now hardened for local-only operation:
+
+- Published ports are bound to `127.0.0.1` by default
+- The shared Docker network is marked `internal`, which blocks container egress
+- n8n diagnostics, version checks, template fetching, and community package installs are disabled
+- Qdrant usage statistics are disabled
+- Docling remote services are disabled
+- Automatic Ollama model pulls have been removed
+- Compose image references are pinned to immutable digests where registry access allowed reliable verification
+
+Read [LOCAL_ONLY_HARDENING.md](LOCAL_ONLY_HARDENING.md) before putting sensitive data in the stack. Setup still requires pulling container images, and models must be staged deliberately instead of being downloaded automatically at runtime.
+
+## Image digest pinning
+
+`docker-compose.yml` now pins reviewed image manifests with `image:tag@sha256:...` references so a mutable tag cannot silently retarget to different contents later.
+
+Use [LOCAL_ONLY_HARDENING.md](LOCAL_ONLY_HARDENING.md) for the current pinned-image list, the one remaining unpinned image, and the refresh procedure for updating digests intentionally.
 
 ## Installation
 
 ### Cloning the Repository
 
 ```bash
-git clone https://github.com/theaiautomators/self-hosted-ai-starter-kit.git
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
-cp .env.example .env # you should update secrets and passwords inside
+cp .env.example .env # replace all placeholder secrets before first run
 ```
 
 ### Running n8n using Docker Compose
@@ -60,9 +79,9 @@ cp .env.example .env # you should update secrets and passwords inside
 #### For Nvidia GPU users
 
 ```bash
-git clone https://github.com/theaiautomators/self-hosted-ai-starter-kit.git
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
-cp .env.example .env # you should update secrets and passwords inside
+cp .env.example .env # replace all placeholder secrets before first run
 docker compose --profile gpu-nvidia up
 ```
 
@@ -73,9 +92,9 @@ docker compose --profile gpu-nvidia up
 ### For AMD GPU users on Linux
 
 ```bash
-git clone https://github.com/theaiautomators/self-hosted-ai-starter-kit.git
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
-cp .env.example .env # you should update secrets and passwords inside
+cp .env.example .env # replace all placeholder secrets before first run
 docker compose --profile gpu-amd up
 ```
 
@@ -94,9 +113,9 @@ If you want to run Ollama on your mac, check the
 for installation instructions, and run the starter kit as follows:
 
 ```bash
-git clone https://github.com/theaiautomators/self-hosted-ai-starter-kit.git
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
-cp .env.example .env # you should update secrets and passwords inside
+cp .env.example .env # replace all placeholder secrets before first run
 docker compose --profile cpu up
 ```
 
@@ -105,7 +124,7 @@ docker compose --profile cpu up
 
 ##### For Mac users running OLLAMA locally
 
-If you're running OLLAMA locally on your Mac (not in Docker), you need to modify the OLLAMA_HOST environment variable
+If you're running Ollama locally on your Mac (not in Docker), you need to modify the `OLLAMA_HOST` environment variable. This path is not compatible with the hardened no-egress default unless you intentionally relax the Docker network isolation for setup or development.
 
 1. Set OLLAMA_HOST to `host.docker.internal:11434` in your .env file. 
 2. Additionally, after you see "Editor is now accessible via: <http://localhost:5678/>":
@@ -117,9 +136,9 @@ If you're running OLLAMA locally on your Mac (not in Docker), you need to modify
 #### For everyone else
 
 ```bash
-git clone https://github.com/theaiautomators/self-hosted-ai-starter-kit.git
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
-cp .env.example .env # you should update secrets and passwords inside
+cp .env.example .env # replace all placeholder secrets before first run
 docker compose --profile cpu up
 ```
 
@@ -133,9 +152,10 @@ After completing the installation steps above, simply follow the steps below to 
 2. Open the included workflow:
    <http://localhost:5678/workflow/srOnR8PAY3u4RSwb>
 3. Click the **Chat** button at the bottom of the canvas, to start running the workflow.
-4. If this is the first time you’re running the workflow, you may need to wait
-   until Ollama finishes downloading Llama3.2. You can inspect the docker
-   console logs to check on the progress.
+4. Stage the `llama3.2` model into Ollama before using the demo workflow. The
+   hardened default no longer auto-downloads models. If you intentionally want
+   a setup-time internet download, use the temporary online bootstrap flow
+   documented in [LOCAL_ONLY_HARDENING.md](LOCAL_ONLY_HARDENING.md).
 
 To open n8n at any time, visit <http://localhost:5678/> in your browser.
 
@@ -144,8 +164,10 @@ suite of basic and advanced AI nodes such as
 [AI Agent](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.agent/),
 [Text classifier](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.text-classifier/),
 and [Information Extractor](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.information-extractor/)
-nodes. To keep everything local, just remember to use the Ollama node for your
-language model and Qdrant as your vector store.
+nodes. n8n is still an automation platform with many nodes capable of outbound
+HTTP or API access. In the hardened default, container egress is blocked at the
+Docker network layer, but imported workflows and future config changes can
+reintroduce outbound paths. Review every workflow before using sensitive data.
 
 > [!NOTE]
 > This starter kit is designed to help you get started with self-hosted AI
@@ -156,6 +178,12 @@ language model and Qdrant as your vector store.
 ## Optional Admo integration
 
 This fork can also run [Admo](https://github.com/nsolz7/Admo) as a sibling local service for ServiceNow XML.
+
+> [!WARNING]
+> The `admo` profile builds code from a separate sibling repository outside this
+> repo. This audit only covers the integration points in this repository. Treat
+> Admo as a separate codebase that must be audited independently before handling
+> sensitive data.
 
 Keep the responsibilities split clean:
 
@@ -201,6 +229,11 @@ Admo is intentionally not mounted into the starter kit `./shared` folder by defa
 
 ## Upgrading
 
+> [!WARNING]
+> Every `docker compose pull` is a setup-time external network operation that
+> fetches new container code. For sensitive deployments, pin image digests and
+> mirror the images you trust instead of pulling floating tags directly.
+
 * ### For Nvidia GPU setups:
 
 ```bash
@@ -239,6 +272,12 @@ and nodes. If you run into an issue, go to [support](#support).
 
 ## 🛍️ More AI templates
 
+> [!WARNING]
+> The n8n template gallery and the linked workflows are online resources and are
+> not audited here for local-only behavior. Many templates call hosted APIs,
+> websites, or cloud model providers. Do not import them into a sensitive-data
+> environment without reviewing every node, credential, and outbound call.
+
 For more AI workflow ideas, visit the [**official n8n AI template
 gallery**](https://n8n.io/workflows/categories/ai/). From each workflow,
 select the **Use workflow** button to automatically import the workflow into
@@ -270,11 +309,13 @@ allows n8n to access files on disk. This folder within the n8n container is
 located at `/data/shared` -- this is the path you’ll need to use in nodes that
 interact with the local filesystem.
 
-**Nodes that interact with the local filesystem**
+By default, this Compose file keeps n8n’s safer node exclusions in place, so
+`Local File Trigger` and `Execute Command` are not loaded. If you re-enable
+them, treat that as a separate security review.
+
+**Node that remains available for local filesystem access**
 
 - [Read/Write Files from Disk](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.filesreadwrite/)
-- [Local File Trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.localfiletrigger/)
-- [Execute Command](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.executecommand/)
 
 ## 📜 License
 

@@ -7,9 +7,11 @@ volumes:
 
 networks:
   demo:
+    # Block container egress by default. Published ports remain reachable from the host.
+    internal: true
 
 x-n8n: &service-n8n
-  image: n8nio/n8n:latest
+  image: n8nio/n8n:2.13.4@sha256:ab216dc8d10d1940a07f41f04355011ab03d0dec1fc03d62d5db3fc1bad815f5
   networks: ['demo']
   environment:
     - DB_TYPE=postgresdb
@@ -18,43 +20,37 @@ x-n8n: &service-n8n
     - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
     - N8N_DIAGNOSTICS_ENABLED=false
     - N8N_PERSONALIZATION_ENABLED=false
+    - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+    - N8N_TEMPLATES_ENABLED=false
+    - EXTERNAL_FRONTEND_HOOKS_URLS=
+    - N8N_DIAGNOSTICS_CONFIG_FRONTEND=
+    - N8N_DIAGNOSTICS_CONFIG_BACKEND=
+    - N8N_COMMUNITY_PACKAGES_ENABLED=false
+    - N8N_UNVERIFIED_PACKAGES_ENABLED=false
+    - N8N_VERIFIED_PACKAGES_ENABLED=false
     - N8N_ENCRYPTION_KEY
     - N8N_USER_MANAGEMENT_JWT_SECRET
     - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
     - N8N_RESTRICT_FILE_ACCESS_TO=/data/shared
-    - NODES_EXCLUDE=[]
   env_file:
     - path: .env
       required: true
 
 x-ollama: &service-ollama
-  image: ollama/ollama:latest
+  image: ollama/ollama:0.19.0-rc0@sha256:ff17815f73e64408bbd723bb8e570770dfb612238e59e4c9bc5832ec7928df82
   container_name: ollama
   networks: ['demo']
   restart: unless-stopped
   ports:
-    - 11434:11434
+    - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:11434:11434"
   volumes:
     - ollama_storage:/root/.ollama
-
-x-init-ollama: &init-ollama
-  image: ollama/ollama:latest
-  networks: ['demo']
-  container_name: ollama-pull-llama
-  volumes:
-    - ollama_storage:/root/.ollama
-  entrypoint: /bin/sh
-  environment:
-    - OLLAMA_HOST=ollama:11434
-  command:
-    - "-c"
-    - "sleep 3; ollama pull llama3.2"
 
 # ===========================================
 # Docling Base Configuration (YAML Anchor)
 # ===========================================
 x-docling: &service-docling
-  image: ghcr.io/docling-project/docling-serve:main
+  image: ghcr.io/docling-project/docling-serve:main@sha256:602777945860ba49c27181b72c90294e7fc3fa4a7facb2165f50a8254422d6a6
   container_name: docling
   networks: ['demo']
   restart: unless-stopped
@@ -65,7 +61,7 @@ x-docling: &service-docling
   expose:
     - 5001/tcp
   ports:
-    - 5001:5001
+    - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:5001:5001"
   environment:
     - DOCLING_SERVE_ENABLE_UI=true
     # Store extracted images in shared folder accessible by other services
@@ -75,7 +71,16 @@ x-docling: &service-docling
     # Gradio security: allow writing to /shared directory
     - GRADIO_ALLOWED_PATHS=/shared
     - GRADIO_TEMP_DIR=/shared/docling-scratch
-    - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=true
+    - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=false
+    - DOCLING_SERVE_ALLOW_EXTERNAL_PLUGINS=false
+    - DOCLING_SERVE_ALLOW_CUSTOM_VLM_CONFIG=false
+    - DOCLING_SERVE_ALLOW_CUSTOM_PICTURE_DESCRIPTION_CONFIG=false
+    - DOCLING_SERVE_ALLOW_CUSTOM_CODE_FORMULA_CONFIG=false
+    - DOCLING_SERVE_ENABLE_MANAGEMENT_ENDPOINTS=false
+    - DOCLING_SERVE_SHOW_VERSION_INFO=false
+    - DOCLING_SERVE_OTEL_ENABLE_TRACES=false
+    - DOCLING_SERVE_OTEL_ENABLE_OTLP_METRICS=false
+    - OTEL_EXPORTER_OTLP_ENDPOINT=
   volumes:
     - docling_data:/data
     - ./shared:/shared
@@ -88,7 +93,7 @@ x-docling: &service-docling
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.13-alpine3.23@sha256:20edbde7749f822887a1a022ad526fde0a47d6b2be9a8364433605cf65099416
     hostname: postgres
     networks: ['demo']
     restart: unless-stopped
@@ -136,7 +141,7 @@ services:
     # Run as root to access shared files created by Docling (also running as root)
     user: root
     ports:
-      - 5678:5678
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:5678:5678"
     volumes:
       - n8n_storage:/home/node/.n8n
       - ./n8n/demo-data:/demo-data
@@ -149,13 +154,15 @@ services:
         condition: service_completed_successfully
 
   qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:v1.17.1@sha256:94728574965d17c6485dd361aa3c0818b325b9016dac5ea6afec7b4b2700865f
     hostname: qdrant
     container_name: qdrant
     networks: ['demo']
     restart: unless-stopped
+    environment:
+      - QDRANT__TELEMETRY_DISABLED=true
     ports:
-      - 6333:6333
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:6333:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
 
@@ -174,7 +181,7 @@ services:
     networks: ['demo']
     restart: unless-stopped
     ports:
-      - "${ADMO_PORT:-8000}:8000"
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:${ADMO_PORT:-8000}:8000"
     environment:
       - KNOWLEDGE_PROJECT_ROOT=/knowledge
       - ALLOW_NETWORK=false
@@ -201,13 +208,13 @@ services:
   # Access files at http://localhost:8080/
   # Example: http://localhost:8080/extracted-images/image_xxx.png
   static-files:
-    image: nginx:alpine
+    image: nginx:1.29.7-alpine@sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1
     hostname: static-files
     container_name: static-files
     networks: ['demo']
     restart: unless-stopped
     ports:
-      - 8080:80
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:8080:80"
     volumes:
       - ./shared/extracted-images:/usr/share/nginx/html:ro
     command: |
@@ -218,7 +225,6 @@ services:
         autoindex on;
         location / {
           try_files \$$uri \$$uri/ =404;
-          add_header Access-Control-Allow-Origin *;
         }
       }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
 
@@ -240,29 +246,10 @@ services:
   ollama-gpu-amd:
     profiles: ["gpu-amd"]
     <<: *service-ollama
-    image: ollama/ollama:rocm
+    image: ollama/ollama:0.19.0-rc0-rocm@sha256:712e4b2fb26840eb4c5cca0cb0068f67b1952cfc756a2a4e3e990ed45efa1c84
     devices:
       - "/dev/kfd"
       - "/dev/dri"
-
-  ollama-pull-llama-cpu:
-    profiles: ["cpu"]
-    <<: *init-ollama
-    depends_on:
-      - ollama-cpu
-
-  ollama-pull-llama-gpu:
-    profiles: ["gpu-nvidia"]
-    <<: *init-ollama
-    depends_on:
-      - ollama-gpu
-
-  ollama-pull-llama-gpu-amd:
-    profiles: [gpu-amd]
-    <<: *init-ollama
-    image: ollama/ollama:rocm
-    depends_on:
-     - ollama-gpu-amd
 
   # ===========================================
   # Docling - Document Processing
@@ -279,15 +266,24 @@ services:
   docling-gpu:
     profiles: ["gpu-nvidia"]
     <<: *service-docling
-    image: ghcr.io/docling-project/docling-serve-cu126:main
+    image: ghcr.io/docling-project/docling-serve-cu126:main@sha256:01521110609f51f20ba87b96464a49dfc797eddcb6423da92036aa10ec5b1873
     environment:
       - DOCLING_SERVE_ENABLE_UI=true
       - DOCLING_SERVE_SCRATCH_PATH=/shared/docling-scratch
       - DOCLING_SERVE_SINGLE_USE_RESULTS=false
       - GRADIO_ALLOWED_PATHS=/shared
       - GRADIO_TEMP_DIR=/shared/docling-scratch
+      - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=false
+      - DOCLING_SERVE_ALLOW_EXTERNAL_PLUGINS=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_VLM_CONFIG=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_PICTURE_DESCRIPTION_CONFIG=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_CODE_FORMULA_CONFIG=false
+      - DOCLING_SERVE_ENABLE_MANAGEMENT_ENDPOINTS=false
+      - DOCLING_SERVE_SHOW_VERSION_INFO=false
+      - DOCLING_SERVE_OTEL_ENABLE_TRACES=false
+      - DOCLING_SERVE_OTEL_ENABLE_OTLP_METRICS=false
+      - OTEL_EXPORTER_OTLP_ENDPOINT=
       - NVIDIA_VISIBLE_DEVICES=all
-      - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=true
     runtime: nvidia
 
   docling-gpu-amd:
@@ -300,8 +296,17 @@ services:
       - DOCLING_SERVE_SINGLE_USE_RESULTS=false
       - GRADIO_ALLOWED_PATHS=/shared
       - GRADIO_TEMP_DIR=/shared/docling-scratch
+      - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=false
+      - DOCLING_SERVE_ALLOW_EXTERNAL_PLUGINS=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_VLM_CONFIG=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_PICTURE_DESCRIPTION_CONFIG=false
+      - DOCLING_SERVE_ALLOW_CUSTOM_CODE_FORMULA_CONFIG=false
+      - DOCLING_SERVE_ENABLE_MANAGEMENT_ENDPOINTS=false
+      - DOCLING_SERVE_SHOW_VERSION_INFO=false
+      - DOCLING_SERVE_OTEL_ENABLE_TRACES=false
+      - DOCLING_SERVE_OTEL_ENABLE_OTLP_METRICS=false
+      - OTEL_EXPORTER_OTLP_ENDPOINT=
       - ROCR_VISIBLE_DEVICES=0
-      - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=true
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
