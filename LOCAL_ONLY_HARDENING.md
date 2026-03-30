@@ -19,7 +19,8 @@ Not fully auditable from this repository:
 
 ## Hardening changes applied
 
-- The shared Docker network is now `internal`, which blocks container egress by default.
+- Runtime traffic is split between an internal `backend` network and a host-facing `edge` network.
+- The `backend` network is `internal`, and host-facing services keep `backend` as their default gateway.
 - Published ports now bind to `127.0.0.1` by default through `LOCAL_BIND_ADDRESS`.
 - n8n now explicitly disables diagnostics, version notifications, template fetching, and community package installs.
 - The repo no longer overrides n8n's default risky-node exclusions with `NODES_EXCLUDE=[]`.
@@ -31,6 +32,25 @@ Not fully auditable from this repository:
 - The static file server no longer sends `Access-Control-Allow-Origin: *`.
 - `.env.example` now uses placeholder secrets instead of weak demo credentials.
 - Compose image references are now pinned to immutable digests where registry access allowed reliable verification.
+
+## Network topology after the Docker Desktop for Mac fix
+
+Why the old design was a problem:
+
+- The earlier hardening pass put every service on one `internal: true` bridge network.
+- That preserved no-egress intent, but it also made every published localhost port depend on the same isolated network path.
+- On Docker Desktop for Mac, that topology proved unreliable for host port forwarding even when the containers were healthy and reachable from each other.
+
+What the stack uses now:
+
+- `backend`: `internal: true`, used for service-to-service traffic and kept as the default route with Compose `gw_priority`.
+- `edge`: normal bridge, attached only to services that need host localhost access.
+- Published ports remain explicitly bound to `127.0.0.1`, and the `edge` bridge also defaults host bindings to loopback as defense in depth.
+
+Security impact:
+
+- Containers still use the isolated `backend` network as their default gateway, so adding `edge` does not become a silent egress bypass.
+- Services that do not need host access, such as `postgres` and `n8n-import`, stay on `backend` only.
 
 ## Container image digest pinning
 
@@ -93,10 +113,10 @@ How to refresh digests intentionally:
 
 ### Runtime state after hardening
 
-- Under the default Compose file, containers can talk to each other on the internal Docker network but cannot reach external networks.
+- Under the default Compose file, containers talk to each other on the isolated `backend` network while host-published services also join the `edge` network for localhost access.
 - Host access to services is limited to loopback unless `LOCAL_BIND_ADDRESS` is changed.
 - The stack still depends on operator discipline:
-  - relaxing the internal network restores container egress
+  - relaxing the `backend` network or changing the default gateway away from `backend` restores container egress
   - importing new workflows into n8n can reintroduce risky logic if the network boundary is relaxed
   - enabling the optional Admo profile adds an external codebase that is not covered by this repo audit
 
@@ -252,7 +272,8 @@ Assessment:
 
 ### Default hardened runtime
 
-- `n8n` may call other containers on the internal Docker network.
+- `n8n` may call other containers on the isolated `backend` Docker network.
+- Host-published services stay reachable on localhost through the separate `edge` bridge.
 - `ollama` serves only locally staged models.
 - `docling-*` processes documents locally without remote services.
 - `qdrant` stores vectors locally with telemetry disabled.
@@ -288,13 +309,13 @@ Remaining blockers:
 - Ollama models must be staged from a trusted source before use
 - `ghcr.io/docling-project/docling-serve-rocm:main` remains unpinned because GHCR denied anonymous manifest inspection during this audit
 - the optional Admo service is outside this repository and remains unaudited here
-- any future override that removes `internal: true` or broadens port bindings reintroduces runtime egress
+- any future override that removes `backend.internal`, changes the default route away from `backend`, or broadens port bindings reintroduces runtime egress
 
 Recommended operator actions before trusting sensitive data:
 
 1. Mirror the pinned images internally and do not use the `gpu-amd` profile for sensitive data until the Docling ROCm image is pinned or mirrored from a trusted source.
 2. Stage Ollama models and any other required artifacts before sensitive documents enter the stack.
-3. Keep `LOCAL_BIND_ADDRESS=127.0.0.1` and keep the default internal Docker network.
+3. Keep `LOCAL_BIND_ADDRESS=127.0.0.1` and keep `backend` as the internal default-route network.
 4. Do not enable the `admo` profile until that codebase is audited separately.
 5. Review every n8n workflow import and keep the Docker egress boundary intact.
 
@@ -310,7 +331,7 @@ docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
 docker compose --profile cpu up -d
 ```
 
-This temporarily disables the no-egress network guardrail. Do not use that override during sensitive-data processing.
+This temporarily disables the `backend` no-egress network guardrail. Do not use that override during sensitive-data processing.
 
 ## Upstream references
 

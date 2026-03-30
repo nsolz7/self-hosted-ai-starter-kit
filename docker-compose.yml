@@ -6,13 +6,17 @@ volumes:
   docling_data:
 
 networks:
-  demo:
-    # Block container egress by default. Published ports remain reachable from the host.
+  backend:
+    # Keep container-to-container traffic isolated from external networks by default.
     internal: true
+  edge:
+    # Host-facing ports stay loopback-bound unless a port binding overrides this intentionally.
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
 
 x-n8n: &service-n8n
   image: n8nio/n8n:2.13.4@sha256:ab216dc8d10d1940a07f41f04355011ab03d0dec1fc03d62d5db3fc1bad815f5
-  networks: ['demo']
   environment:
     - DB_TYPE=postgresdb
     - DB_POSTGRESDB_HOST=postgres
@@ -40,9 +44,11 @@ x-ollama: &service-ollama
   image: ollama/ollama:0.19.0-rc0@sha256:ff17815f73e64408bbd723bb8e570770dfb612238e59e4c9bc5832ec7928df82
   container_name: ollama
   networks:
-    demo:
+    backend:
+      gw_priority: 1
       aliases:
         - ollama
+    edge:
   restart: unless-stopped
   ports:
     - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:11434:11434"
@@ -56,9 +62,11 @@ x-docling: &service-docling
   image: ghcr.io/docling-project/docling-serve:main@sha256:602777945860ba49c27181b72c90294e7fc3fa4a7facb2165f50a8254422d6a6
   container_name: docling
   networks:
-    demo:
+    backend:
+      gw_priority: 1
       aliases:
         - docling
+    edge:
   restart: unless-stopped
   # Run as root to fix bind mount permissions on Windows
   user: root
@@ -101,7 +109,8 @@ services:
   postgres:
     image: postgres:16.13-alpine3.23@sha256:20edbde7749f822887a1a022ad526fde0a47d6b2be9a8364433605cf65099416
     hostname: postgres
-    networks: ['demo']
+    networks:
+      backend:
     restart: unless-stopped
     environment:
       - POSTGRES_USER
@@ -135,6 +144,8 @@ services:
         fi
     volumes:
       - ./n8n/demo-data:/demo-data
+    networks:
+      backend:
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,6 +157,10 @@ services:
     restart: unless-stopped
     # Run as root to access shared files created by Docling (also running as root)
     user: root
+    networks:
+      backend:
+        gw_priority: 1
+      edge:
     ports:
       - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:5678:5678"
     volumes:
@@ -163,7 +178,10 @@ services:
     image: qdrant/qdrant:v1.17.1@sha256:94728574965d17c6485dd361aa3c0818b325b9016dac5ea6afec7b4b2700865f
     hostname: qdrant
     container_name: qdrant
-    networks: ['demo']
+    networks:
+      backend:
+        gw_priority: 1
+      edge:
     restart: unless-stopped
     environment:
       - QDRANT__TELEMETRY_DISABLED=true
@@ -184,7 +202,10 @@ services:
       context: ${ADMO_REPO_PATH:-../Admo}
     hostname: admo
     container_name: admo
-    networks: ['demo']
+    networks:
+      backend:
+        gw_priority: 1
+      edge:
     restart: unless-stopped
     ports:
       - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:${ADMO_PORT:-8000}:8000"
@@ -217,7 +238,10 @@ services:
     image: nginx:1.29.7-alpine@sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1
     hostname: static-files
     container_name: static-files
-    networks: ['demo']
+    networks:
+      backend:
+        gw_priority: 1
+      edge:
     restart: unless-stopped
     ports:
       - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:8080:80"

@@ -8,5 +8,5 @@
 # docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
 
 networks:
-  demo:
+  backend:
     internal: false

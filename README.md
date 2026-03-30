@@ -49,12 +49,15 @@ Engineering world, handles large amounts of data safely.
 The default Compose configuration in this repo is now hardened for local-only operation:
 
 - Published ports are bound to `127.0.0.1` by default
-- The shared Docker network is marked `internal`, which blocks container egress
+- Runtime traffic is split between an isolated `backend` network and a host-facing `edge` network
+- The `backend` network is marked `internal`, which blocks container egress by default
 - n8n diagnostics, version checks, template fetching, and community package installs are disabled
 - Qdrant usage statistics are disabled
 - Docling remote services are disabled
 - Automatic Ollama model pulls have been removed
 - Compose image references are pinned to immutable digests where registry access allowed reliable verification
+
+This two-layer network model exists because Docker Desktop for Mac can behave poorly when published localhost ports depend on a single `internal` network. Host-facing services now join both networks: `edge` restores reliable `localhost` access, while `backend` stays the default gateway to preserve the local-only no-egress intent.
 
 Read [LOCAL_ONLY_HARDENING.md](LOCAL_ONLY_HARDENING.md) before putting sensitive data in the stack. Setup still requires pulling container images, and models must be staged deliberately instead of being downloaded automatically at runtime.
 
@@ -214,6 +217,16 @@ After completing the installation steps above, simply follow the steps below to 
 
 To open n8n at any time, visit <http://localhost:5678/> in your browser.
 
+When the corresponding services are running, these localhost URLs should work:
+
+- n8n: <http://localhost:5678/>
+- Docling UI: <http://localhost:5001/ui>
+- Docling docs: <http://localhost:5001/docs>
+- Admo health: <http://localhost:8000/api/v1/health>
+- Qdrant dashboard: <http://localhost:6333/dashboard>
+- Static files: <http://localhost:8080/>
+- Docker-hosted Ollama: <http://localhost:11434/>
+
 With your n8n instance, you’ll have access to over 400 integrations and a
 suite of basic and advanced AI nodes such as
 [AI Agent](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.agent/),
@@ -271,7 +284,7 @@ Start the stack with the `admo` profile in addition to your normal Docling/Ollam
 docker compose --profile cpu --profile admo up
 ```
 
-Inside the compose network, n8n can call Admo at `http://admo:8000`.
+Inside the backend Compose network, n8n can call Admo at `http://admo:8000`.
 
 ### Routing model
 
