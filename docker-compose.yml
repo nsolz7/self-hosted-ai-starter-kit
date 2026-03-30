@@ -39,7 +39,10 @@ x-n8n: &service-n8n
 x-ollama: &service-ollama
   image: ollama/ollama:0.19.0-rc0@sha256:ff17815f73e64408bbd723bb8e570770dfb612238e59e4c9bc5832ec7928df82
   container_name: ollama
-  networks: ['demo']
+  networks:
+    demo:
+      aliases:
+        - ollama
   restart: unless-stopped
   ports:
     - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:11434:11434"
@@ -52,7 +55,10 @@ x-ollama: &service-ollama
 x-docling: &service-docling
   image: ghcr.io/docling-project/docling-serve:main@sha256:602777945860ba49c27181b72c90294e7fc3fa4a7facb2165f50a8254422d6a6
   container_name: docling
-  networks: ['demo']
+  networks:
+    demo:
+      aliases:
+        - docling
   restart: unless-stopped
   # Run as root to fix bind mount permissions on Windows
   user: root
@@ -256,11 +262,11 @@ services:
   # ===========================================
   # OCR and document parsing service
   # Accessible at http://localhost:5001
-  # Uses profiles: cpu, gpu-nvidia, gpu-amd
+  # Uses profiles: docling, cpu, gpu-nvidia, gpu-amd
   # Docs: https://github.com/docling-project/docling-serve
 
   docling-cpu:
-    profiles: ["cpu"]
+    profiles: ["docling", "cpu"]
     <<: *service-docling
 
   docling-gpu:

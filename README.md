@@ -101,12 +101,12 @@ docker compose --profile gpu-amd up
 #### For Mac / Apple Silicon users
 
 If you’re using a Mac with an M1 or newer processor, you can't expose your GPU
-to the Docker instance, unfortunately. There are two different paths here:
+to the Docker instance, unfortunately. There are three supported paths here:
 
 ##### Option 1: Ollama installed on the Mac host
 
 Use this when you want n8n in Docker, but Ollama running directly on macOS for
-faster local inference.
+faster local inference and you do not need Docling.
 
 ```bash
 git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
@@ -131,11 +131,38 @@ It does not start Docker Ollama or Docling. For this path:
    `Local Ollama service`, and change the base URL to
    `http://host.docker.internal:11434/`.
 
-This path expects Ollama outside the Compose project. It is not the fully
-Docker-contained CPU path, and it depends on the n8n container being able to
-reach the Mac host.
+This path expects Ollama outside the Compose project. n8n reaches host Ollama
+through `host.docker.internal:11434`. Docling-backed workflows will not work in
+this mode because no Docling container is started.
 
-##### Option 2: Full CPU stack inside Docker
+##### Option 2: Ollama on the Mac host plus Docling in Docker
+
+Use this when you want host-installed Ollama for inference speed, but still want
+Docling available in Docker for document parsing workflows.
+
+```bash
+git clone https://github.com/nsolz7/self-hosted-ai-starter-kit.git
+cd self-hosted-ai-starter-kit
+cp .env.example .env # replace all placeholder secrets before first run
+docker compose --profile docling up
+```
+
+This starts the default services plus:
+
+- `docling-cpu`
+
+It does not start Docker Ollama. For this path:
+
+1. Install Ollama on the Mac host using the [Ollama homepage](https://ollama.com/).
+2. Set `OLLAMA_HOST=host.docker.internal:11434` in your `.env` file.
+3. After n8n starts, open <http://localhost:5678/home/credentials>, select
+   `Local Ollama service`, and change the base URL to
+   `http://host.docker.internal:11434/`.
+
+n8n reaches host Ollama through `host.docker.internal:11434`, and it reaches
+Docling inside the Compose network at `http://docling:5001`.
+
+##### Option 3: Full CPU stack inside Docker
 
 Use this when you want both Ollama and Docling started inside Docker:
 
@@ -152,7 +179,12 @@ This starts the default services plus:
 - `docling-cpu`
 
 For this path, leave `OLLAMA_HOST` unset so n8n keeps the default in-network
-endpoint `ollama:11434`.
+endpoint `ollama:11434`. n8n reaches Docling inside the Compose network at
+`http://docling:5001`. It does not use host-installed Ollama.
+
+If you also use the optional Admo sibling service, add `--profile admo` to any
+of these commands after cloning the Admo repository described later in this
+README.
 
 #### For everyone else
 
@@ -177,6 +209,8 @@ After completing the installation steps above, simply follow the steps below to 
    hardened default no longer auto-downloads models. If you intentionally want
    a setup-time internet download, use the temporary online bootstrap flow
    documented in [LOCAL_ONLY_HARDENING.md](LOCAL_ONLY_HARDENING.md).
+5. Any Docling-backed workflow requires a running Docling service. Start either
+   the `docling` profile or the full `cpu` profile before using those flows.
 
 To open n8n at any time, visit <http://localhost:5678/> in your browser.
 
@@ -262,11 +296,18 @@ docker compose --profile gpu-nvidia pull
 docker compose create && docker compose --profile gpu-nvidia up
 ```
 
-* ### For Mac / Apple Silicon users running Ollama on the host
+* ### For Mac / Apple Silicon users running Ollama on the host without Docling
 
 ```bash
 docker compose pull
 docker compose create && docker compose up
+```
+
+* ### For Mac / Apple Silicon users running Ollama on the host with Docker Docling
+
+```bash
+docker compose --profile docling pull
+docker compose create && docker compose --profile docling up
 ```
 
 * ### For Non-GPU setups:
