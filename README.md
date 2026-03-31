@@ -242,7 +242,7 @@ docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
 docker compose up -d
 ```
 
-If you started with profiles, use the same profile set again on the final hardened restart. If activation fails with `unable to get local issuer certificate`, bootstrap mode is already providing egress; the missing piece is TLS trust, so add the required PEM certificate(s) under `./pki/` and restart the bootstrap run.
+If you started with profiles, use the same profile set again on the final hardened restart. If activation fails with `unable to get local issuer certificate`, bootstrap mode is already providing egress; the missing piece is TLS trust, so add the required PEM certificate(s) under `./pki/` and restart the bootstrap run. This was observed in practice on a corporate TLS-inspection network. If your environment uses tooling such as zScaler, a temporary workaround is to disable that inspection layer briefly for the one-time registration or activation step; the more durable fix is to add the corporate CA to `./pki/`.
 
 ## ⚡️ Quick start and usage
 
@@ -430,12 +430,36 @@ allows n8n to access files on disk. This folder within the n8n container is
 located at `/data/shared` -- this is the path you’ll need to use in nodes that
 interact with the local filesystem.
 
-By default, this Compose file keeps n8n’s safer node exclusions in place, so
-`Local File Trigger` and `Execute Command` are not loaded. If you re-enable
-them, treat that as a separate security review.
+This repository intentionally enables **Local File Trigger** for self-hosted
+local ingestion while still keeping **Execute Command** blocked through
+`NODES_EXCLUDE=["n8n-nodes-base.executeCommand"]`.
 
-**Node that remains available for local filesystem access**
+Use this dedicated watch path for Local File Trigger workflows:
 
+- Host path: `./shared/watched-files/`
+- Container path: `/data/shared/watched-files/`
+
+Because `./shared` is bind-mounted into the n8n container, files dropped into
+`./shared/watched-files/` on the host are visible to Local File Trigger inside
+the container at `/data/shared/watched-files/`.
+
+Local File Trigger is a self-hosted capability. It only works when the watched
+folder is bind-mounted into the n8n container, which this stack already does
+through `./shared:/data/shared`.
+
+On Docker Desktop for macOS, bind-mounted file events can be unreliable. If the
+node doesn’t react to file changes consistently, use the Local File Trigger
+node’s **Polling Mode** as the recommended fallback.
+
+Use this intentionally:
+
+- watch only trusted local folders
+- keep the watched path inside `/data/shared`
+- leave `Execute Command` blocked unless you perform a separate security review
+
+**Nodes available for local filesystem access**
+
+- [Local File Trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.localfiletrigger/)
 - [Read/Write Files from Disk](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.filesreadwrite/)
 
 ## 📜 License

@@ -38,6 +38,7 @@ x-n8n: &service-n8n
     - N8N_LICENSE_AUTO_RENEW_ENABLED
     - N8N_LICENSE_SERVER_URL
     - https_proxy_license_server
+    - NODES_EXCLUDE
     - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
     - N8N_RESTRICT_FILE_ACCESS_TO=/data/shared
   env_file:
@@ -171,6 +172,7 @@ services:
     volumes:
       - n8n_storage:/home/node/.n8n
       - ./n8n/demo-data:/demo-data
+      # Recommended Local File Trigger path: host ./shared/watched-files -> container /data/shared/watched-files
       - ./shared:/data/shared
       - ./shared/rag-files:/data/rag-files
       - ./pki:/opt/custom-certificates

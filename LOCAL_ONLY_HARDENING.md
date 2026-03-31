@@ -23,7 +23,7 @@ Not fully auditable from this repository:
 - The `backend` network is `internal`, and host-facing services keep `backend` as their default gateway.
 - Published ports now bind to `127.0.0.1` by default through `LOCAL_BIND_ADDRESS`.
 - n8n now explicitly disables diagnostics, version notifications, template fetching, and community package installs.
-- The repo no longer overrides n8n's default risky-node exclusions with `NODES_EXCLUDE=[]`.
+- The repo intentionally enables `Local File Trigger` for self-hosted local ingestion while still blocking `Execute Command` with `NODES_EXCLUDE=["n8n-nodes-base.executeCommand"]`.
 - Qdrant telemetry is explicitly disabled with `QDRANT__TELEMETRY_DISABLED=true`.
 - Docling remote services are explicitly disabled, and OTLP export remains unset.
 - Automatic `ollama pull` services were removed. Models must be staged deliberately.
@@ -141,12 +141,13 @@ Repo state after hardening:
 
 - diagnostics/version/template lookups disabled
 - community packages disabled
-- risky-node override removed
+- `Execute Command` remains blocked
+- `Local File Trigger` is intentionally enabled for bind-mounted local ingestion under `/data/shared/watched-files`
 - container egress blocked by the Docker network
 
 Assessment:
 
-- Safer than before, but not intrinsically "safe" if an operator later relaxes network isolation or imports unreviewed workflows.
+- Safer than before, but not intrinsically "safe" if an operator later relaxes network isolation, imports unreviewed workflows, or points Local File Trigger at untrusted local inputs.
 
 ### Qdrant
 
@@ -274,6 +275,7 @@ Assessment:
 
 - `n8n` may call other containers on the isolated `backend` Docker network.
 - Host-published services stay reachable on localhost through the separate `edge` bridge.
+- `Local File Trigger` is available for self-hosted workflows and should watch `/data/shared/watched-files`.
 - `ollama` serves only locally staged models.
 - `docling-*` processes documents locally without remote services.
 - `qdrant` stores vectors locally with telemetry disabled.
@@ -334,6 +336,8 @@ Why this works:
 - that means bootstrap mode restores the outbound path n8n needs for license activation without changing the normal hardened runtime file
 
 If your network uses TLS inspection or a private CA, place PEM files in `./pki/` before starting bootstrap mode. The n8n services mount that directory to `/opt/custom-certificates`, which is the path n8n uses for custom certificates.
+
+This certificate-issuer problem was observed in practice on a corporate TLS-interception network. If your environment uses tooling such as zScaler, a temporary workaround is to disable that inspection layer briefly for the one-time registration or activation step. The more durable fix is to trust the corporate CA through `./pki/`.
 
 Example n8n setup and activation flow:
 
