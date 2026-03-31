@@ -3,86 +3,956 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Local Static Files</title>
+  <title>Local Chat Demo</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #101317;
-      --panel: #161b21;
-      --border: #2a3440;
-      --text: #eef2f6;
-      --muted: #a8b3c2;
-      --accent: #5fb3ff;
+      --bg: #0c1117;
+      --panel: rgba(12, 17, 23, 0.86);
+      --panel-strong: rgba(18, 24, 34, 0.96);
+      --line: rgba(153, 179, 209, 0.18);
+      --line-strong: rgba(153, 179, 209, 0.34);
+      --text: #edf4ff;
+      --muted: #9aa9bc;
+      --accent: #6fd1b6;
+      --accent-strong: #9ae7d2;
+      --danger: #ff8d8d;
+      --user: #113246;
+      --assistant: #172130;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+      --radius: 22px;
+      --radius-small: 14px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --sans: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+      --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100%;
       background:
-        radial-gradient(circle at top, rgba(95, 179, 255, 0.12), transparent 35%),
-        linear-gradient(180deg, #0d1014 0%, var(--bg) 100%);
+        radial-gradient(circle at top left, rgba(111, 209, 182, 0.17), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(105, 139, 255, 0.13), transparent 28%),
+        linear-gradient(180deg, #071019 0%, var(--bg) 100%);
       color: var(--text);
-      display: grid;
-      place-items: center;
+      font-family: var(--sans);
+    }
+
+    body {
       padding: 24px;
     }
 
-    main {
-      width: min(720px, 100%);
-      background: rgba(22, 27, 33, 0.92);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 32px;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    .shell {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .sidebar {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 18px rgba(111, 209, 182, 0.6);
     }
 
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(1.8rem, 3vw, 2.4rem);
-      line-height: 1.1;
-    }
-
-    p {
-      margin: 0 0 16px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    ul {
       margin: 0;
-      padding-left: 20px;
+      font-family: var(--serif);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+    }
+
+    .lede,
+    .config-note,
+    .mini-list,
+    .meta-copy {
+      margin: 0;
       color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.96rem;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .config-panel,
+    .payload-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      padding: 14px;
+      background: var(--panel-strong);
+    }
+
+    .label {
+      display: block;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-strong);
+      margin-bottom: 8px;
+    }
+
+    input[type="url"],
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(6, 12, 19, 0.92);
+      color: var(--text);
+      font: inherit;
+      padding: 14px 15px;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    input[type="url"]:focus,
+    textarea:focus {
+      border-color: rgba(111, 209, 182, 0.68);
+      box-shadow: 0 0 0 4px rgba(111, 209, 182, 0.12);
+    }
+
+    .config-actions,
+    .composer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      padding: 11px 16px;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(111, 209, 182, 0.44);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.66;
+      transform: none;
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, #1d7e68 0%, #2c6b91 100%);
+      border-color: rgba(154, 231, 210, 0.28);
+    }
+
+    .button-ghost {
+      color: var(--muted);
+    }
+
+    code,
+    pre {
+      font-family: var(--mono);
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 12px;
+      overflow-x: auto;
+      border-radius: 14px;
+      background: rgba(4, 9, 15, 0.95);
+      color: #cfe8ff;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .chat-card {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      min-height: calc(100vh - 48px);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 18px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .chat-header h2 {
+      margin: 0 0 4px;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+    }
+
+    .chat-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .statusbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 22px;
+      border-bottom: 1px solid rgba(153, 179, 209, 0.1);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .statusbar.is-busy .status-dot {
+      background: #ffd479;
+    }
+
+    .statusbar.is-error .status-dot {
+      background: var(--danger);
+    }
+
+    .messages {
+      padding: 24px 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: min(720px, 88%);
+    }
+
+    .message.is-user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message.is-assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .message-meta {
+      font-size: 0.74rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .bubble {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: var(--assistant);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.is-user .bubble {
+      background: linear-gradient(180deg, rgba(17, 50, 70, 0.94) 0%, rgba(15, 40, 58, 0.98) 100%);
+      border-color: rgba(111, 209, 182, 0.24);
+    }
+
+    .message.is-error .bubble {
+      border-color: rgba(255, 141, 141, 0.4);
+      background: rgba(86, 29, 35, 0.72);
+    }
+
+    .message.is-pending .bubble {
+      color: var(--muted);
+      border-style: dashed;
+    }
+
+    .attachment-list {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .attachment-image {
+      display: block;
+      max-width: min(100%, 420px);
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .attachment-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--accent-strong);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 18px 22px 22px;
+      background: linear-gradient(180deg, rgba(11, 16, 23, 0.4) 0%, rgba(11, 16, 23, 0.92) 100%);
+    }
+
+    .composer textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .composer-help {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .empty-state {
+      max-width: 720px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px dashed var(--line-strong);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.02);
       line-height: 1.7;
     }
 
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      color: var(--accent);
+    .empty-state strong {
+      color: var(--text);
     }
 
     a {
-      color: var(--accent);
+      color: var(--accent-strong);
+    }
+
+    @media (max-width: 960px) {
+      body {
+        padding: 14px;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .chat-card {
+        min-height: 78vh;
+      }
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Local static file server</h1>
-    <p>
-      This page intentionally contains no remote JavaScript, CSS, fonts, or analytics.
-      The previous demo page loaded chat assets from public CDNs and has been removed
-      from the hardened default.
-    </p>
-    <ul>
-      <li>Use <code>http://127.0.0.1:5678/</code> to work with n8n directly.</li>
-      <li>Use this Nginx service only for locally generated files under <code>/usr/share/nginx/html</code>.</li>
-      <li>Review <a href="/chat.html">this page source</a> if you need an offline-safe starting point for your own UI.</li>
-    </ul>
-  </main>
+  <div class="shell">
+    <aside class="card sidebar">
+      <div class="eyebrow">Local-only static demo</div>
+      <div>
+        <h1>Chat against a local workflow.</h1>
+      </div>
+      <p class="lede">
+        This page is an optional tutorial UI served by the local static-files container.
+        It uses only inline HTML, CSS, and JavaScript. No CDNs, fonts, analytics, or
+        hidden remote imports are loaded.
+      </p>
+      <div class="badge-row">
+        <span class="badge">No external assets</span>
+        <span class="badge">No build step</span>
+        <span class="badge">Editable endpoint</span>
+      </div>
+
+      <section class="config-panel">
+        <label class="label" for="endpoint-input">Local endpoint URL</label>
+        <input
+          id="endpoint-input"
+          type="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="http://localhost:5678/webhook/<YOUR-WEBHOOK-ID>/chat"
+        >
+        <div class="config-actions">
+          <button id="save-endpoint" type="button" class="button-primary">Save endpoint</button>
+          <button id="reset-endpoint" type="button" class="button-ghost">Use default</button>
+        </div>
+        <p class="config-note">
+          Edit the endpoint here or change <code>DEFAULT_API_ENDPOINT</code> near the top
+          of this file. If your local API runs on a different port, it must allow browser
+          requests from <code>http://localhost:8080</code>.
+        </p>
+      </section>
+
+      <section class="payload-panel">
+        <p class="label">Request payload</p>
+        <p class="meta-copy">
+          The page sends JSON that is friendly to local n8n webhooks and simple local APIs.
+        </p>
+        <pre>{
+  "message": "hello",
+  "chatInput": "hello",
+  "history": [
+    { "role": "user", "text": "..." },
+    { "role": "assistant", "text": "..." }
+  ],
+  "sentAt": "2026-03-30T12:00:00.000Z",
+  "source": "local-static-chat"
+}</pre>
+      </section>
+
+      <p class="mini-list">
+        Local image or file URLs returned by the endpoint are rendered inline when they
+        resolve to <code>localhost</code>, <code>127.0.0.1</code>, the current page origin,
+        or a relative local path. Remote URLs are left as plain text.
+      </p>
+    </aside>
+
+    <main class="card chat-card">
+      <header class="chat-header">
+        <div>
+          <h2>Local Chat Demo</h2>
+          <p>Optional learning UI for local n8n webhooks and other localhost endpoints.</p>
+        </div>
+        <button id="clear-thread" type="button" class="button-ghost">Clear thread</button>
+      </header>
+
+      <div id="statusbar" class="statusbar">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="status-text">Ready. Configure a local endpoint, then send a message.</span>
+      </div>
+
+      <section id="messages" class="messages" aria-live="polite" aria-label="Chat history"></section>
+
+      <form id="composer" class="composer">
+        <label class="label" for="message-input">Message</label>
+        <textarea
+          id="message-input"
+          placeholder="Ask your local workflow a question. Shift+Enter adds a newline."
+        ></textarea>
+        <div class="composer-actions">
+          <button id="send-button" type="submit" class="button-primary">Send message</button>
+        </div>
+        <p class="composer-help">
+          Only the configured local endpoint is called. The thread itself is stored in your
+          browser so you can refresh the page without losing the conversation.
+        </p>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    // Local-only demo configuration.
+    const DEFAULT_API_ENDPOINT = "http://localhost:5678/webhook/<YOUR-WEBHOOK-ID>/chat";
+    const DEFAULT_HTTP_METHOD = "POST";
+    const REQUEST_TIMEOUT_MS = 60000;
+    const STORAGE_KEYS = {
+      endpoint: "local-static-chat.endpoint",
+      messages: "local-static-chat.messages"
+    };
+
+    const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "host.docker.internal"]);
+    LOCAL_HOSTS.add(window.location.hostname.replace(/^\[|\]$/g, ""));
+
+    const state = {
+      endpoint: loadEndpoint(),
+      messages: loadMessages()
+    };
+
+    const elements = {
+      composer: document.getElementById("composer"),
+      messageInput: document.getElementById("message-input"),
+      messages: document.getElementById("messages"),
+      statusbar: document.getElementById("statusbar"),
+      statusText: document.getElementById("status-text"),
+      endpointInput: document.getElementById("endpoint-input"),
+      saveEndpoint: document.getElementById("save-endpoint"),
+      resetEndpoint: document.getElementById("reset-endpoint"),
+      clearThread: document.getElementById("clear-thread"),
+      sendButton: document.getElementById("send-button")
+    };
+
+    elements.endpointInput.value = state.endpoint;
+    renderMessages();
+
+    elements.saveEndpoint.addEventListener("click", () => {
+      const value = elements.endpointInput.value.trim() || DEFAULT_API_ENDPOINT;
+      state.endpoint = value;
+      localStorage.setItem(STORAGE_KEYS.endpoint, state.endpoint);
+      setStatus("Saved local endpoint. Messages will post there on the next send.");
+    });
+
+    elements.resetEndpoint.addEventListener("click", () => {
+      state.endpoint = DEFAULT_API_ENDPOINT;
+      elements.endpointInput.value = DEFAULT_API_ENDPOINT;
+      localStorage.removeItem(STORAGE_KEYS.endpoint);
+      setStatus("Restored the default endpoint placeholder.");
+    });
+
+    elements.clearThread.addEventListener("click", () => {
+      state.messages = [];
+      persistMessages();
+      renderMessages();
+      setStatus("Cleared the local thread history.");
+    });
+
+    elements.messageInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        elements.composer.requestSubmit();
+      }
+    });
+
+    elements.composer.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const message = elements.messageInput.value.trim();
+      if (!message) {
+        setStatus("Type a message before sending.", "error");
+        return;
+      }
+
+      const endpoint = elements.endpointInput.value.trim() || state.endpoint;
+      if (!endpoint || endpoint.includes("<YOUR-WEBHOOK-ID>")) {
+        setStatus("Update the local endpoint first. The default placeholder will not work.", "error");
+        elements.endpointInput.focus();
+        return;
+      }
+
+      state.endpoint = endpoint;
+      localStorage.setItem(STORAGE_KEYS.endpoint, state.endpoint);
+
+      const userMessage = createMessage("user", message);
+      state.messages.push(userMessage);
+
+      const pendingMessage = createMessage("assistant", "Waiting for the local endpoint...", {
+        pending: true
+      });
+      state.messages.push(pendingMessage);
+      persistMessages();
+      renderMessages();
+
+      elements.messageInput.value = "";
+      setBusy(true, "Sending request to the configured local endpoint...");
+
+      try {
+        const response = await sendToEndpoint(message, endpoint);
+        const pendingIndex = state.messages.findIndex((item) => item.id === pendingMessage.id);
+        if (pendingIndex !== -1) {
+          state.messages[pendingIndex] = createMessage("assistant", response.text, {
+            attachments: response.attachments
+          });
+        }
+        persistMessages();
+        renderMessages();
+        setBusy(false, "Received a response from the local endpoint.");
+      } catch (error) {
+        const pendingIndex = state.messages.findIndex((item) => item.id === pendingMessage.id);
+        if (pendingIndex !== -1) {
+          state.messages[pendingIndex] = createMessage(
+            "assistant",
+            error.message || "The local endpoint request failed.",
+            { error: true }
+          );
+        }
+        persistMessages();
+        renderMessages();
+        setBusy(false, error.message || "The local endpoint request failed.", "error");
+      }
+    });
+
+    function loadEndpoint() {
+      return localStorage.getItem(STORAGE_KEYS.endpoint) || DEFAULT_API_ENDPOINT;
+    }
+
+    function loadMessages() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.messages);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function persistMessages() {
+      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(state.messages.slice(-40)));
+    }
+
+    function createMessage(role, text, options = {}) {
+      return {
+        id: String(Date.now()) + Math.random().toString(16).slice(2),
+        role,
+        text,
+        createdAt: new Date().toISOString(),
+        attachments: options.attachments || [],
+        pending: Boolean(options.pending),
+        error: Boolean(options.error)
+      };
+    }
+
+    function renderMessages() {
+      elements.messages.innerHTML = "";
+
+      if (!state.messages.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.innerHTML = [
+          "<strong>Suggested local demo flow</strong>",
+          "1. Point the endpoint at a local n8n webhook.",
+          "2. Send a message from this page.",
+          "3. Return text, or return local image/file URLs to preview them inline.",
+          "4. Keep the endpoint local and tutorial-only."
+        ].join("<br>");
+        elements.messages.appendChild(empty);
+      } else {
+        state.messages.forEach((message) => {
+          elements.messages.appendChild(renderMessage(message));
+        });
+      }
+
+      elements.messages.scrollTop = elements.messages.scrollHeight;
+    }
+
+    function renderMessage(message) {
+      const article = document.createElement("article");
+      article.className = "message is-" + message.role;
+      if (message.pending) {
+        article.classList.add("is-pending");
+      }
+      if (message.error) {
+        article.classList.add("is-error");
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "message-meta";
+      meta.textContent = (message.role === "user" ? "You" : "Local response") + " - " + formatTime(message.createdAt);
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = message.text;
+
+      article.appendChild(meta);
+      article.appendChild(bubble);
+
+      const attachments = normalizeAttachments(message.attachments);
+      if (attachments.length) {
+        const attachmentList = document.createElement("div");
+        attachmentList.className = "attachment-list";
+
+        attachments.forEach((attachment) => {
+          if (attachment.kind === "image") {
+            const image = document.createElement("img");
+            image.className = "attachment-image";
+            image.src = attachment.href;
+            image.alt = attachment.label;
+            image.loading = "lazy";
+            attachmentList.appendChild(image);
+          } else {
+            const link = document.createElement("a");
+            link.className = "attachment-link";
+            link.href = attachment.href;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = attachment.label;
+            attachmentList.appendChild(link);
+          }
+        });
+
+        article.appendChild(attachmentList);
+      }
+
+      return article;
+    }
+
+    async function sendToEndpoint(message, endpoint) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: DEFAULT_HTTP_METHOD,
+          headers: {
+            "Accept": "application/json, text/plain;q=0.9, */*;q=0.8",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message,
+            chatInput: message,
+            history: state.messages
+              .filter((item) => !item.pending)
+              .map((item) => ({ role: item.role, text: item.text })),
+            sentAt: new Date().toISOString(),
+            source: "local-static-chat"
+          }),
+          signal: controller.signal,
+          mode: "cors"
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("application/json")
+          ? await response.json()
+          : await response.text();
+
+        if (!response.ok) {
+          const errorText = normalizeResponse(data).text || ("HTTP " + response.status);
+          throw new Error("Endpoint error: " + errorText);
+        }
+
+        return normalizeResponse(data);
+      } catch (error) {
+        if (error.name === "AbortError") {
+          throw new Error("The local endpoint timed out after " + Math.round(REQUEST_TIMEOUT_MS / 1000) + " seconds.");
+        }
+        if (error instanceof TypeError) {
+          throw new Error("Browser request failed. Check the local endpoint URL and any CORS settings on the target service.");
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    }
+
+    function normalizeResponse(data) {
+      const attachments = collectRenderableLocalAttachments(data);
+
+      if (typeof data === "string") {
+        return {
+          text: data.trim() || "(empty response)",
+          attachments
+        };
+      }
+
+      if (Array.isArray(data)) {
+        const text = data
+          .map((item) => extractPreferredText(item))
+          .filter(Boolean)
+          .join("\n\n") || JSON.stringify(data, null, 2);
+        return { text, attachments };
+      }
+
+      if (data && typeof data === "object") {
+        if (Array.isArray(data.messages) && data.messages.length) {
+          const messageText = data.messages
+            .map((item) => extractPreferredText(item))
+            .filter(Boolean)
+            .join("\n\n");
+          if (messageText) {
+            return { text: messageText, attachments };
+          }
+        }
+
+        const preferred = extractPreferredText(data);
+        if (preferred) {
+          return { text: preferred, attachments };
+        }
+
+        return {
+          text: JSON.stringify(data, null, 2),
+          attachments
+        };
+      }
+
+      return {
+        text: String(data),
+        attachments
+      };
+    }
+
+    function extractPreferredText(value) {
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (!value || typeof value !== "object") {
+        return "";
+      }
+
+      const candidates = [
+        value.output,
+        value.response,
+        value.reply,
+        value.text,
+        value.message,
+        value.answer,
+        value.content
+      ];
+
+      const match = candidates.find((item) => typeof item === "string" && item.trim());
+      return match || "";
+    }
+
+    function collectRenderableLocalAttachments(value) {
+      const seen = new Map();
+      walkValue(value, seen, 0);
+      return Array.from(seen.values());
+    }
+
+    function walkValue(value, seen, depth) {
+      if (depth > 5 || value == null) {
+        return;
+      }
+
+      if (typeof value === "string") {
+        extractLocalUrlsFromString(value).forEach((attachment) => {
+          seen.set(attachment.href, attachment);
+        });
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => walkValue(item, seen, depth + 1));
+        return;
+      }
+
+      if (typeof value === "object") {
+        Object.entries(value).forEach(([key, item]) => {
+          if (typeof item === "string" && looksLikeRenderableKey(key)) {
+            const attachment = toAttachment(item, key);
+            if (attachment) {
+              seen.set(attachment.href, attachment);
+            }
+          }
+          walkValue(item, seen, depth + 1);
+        });
+      }
+    }
+
+    function extractLocalUrlsFromString(text) {
+      const results = [];
+      const pattern = /(?:https?:\/\/[^\s<>"']+|(?:\.{0,2}\/)?[A-Za-z0-9_./-]+\.(?:png|jpe?g|gif|webp|svg|pdf|txt|json|csv))(?:\?[^\s<>"']*)?/gi;
+      const matches = text.match(pattern) || [];
+      matches.forEach((match) => {
+        const attachment = toAttachment(match);
+        if (attachment) {
+          results.push(attachment);
+        }
+      });
+      return results;
+    }
+
+    function toAttachment(raw, hint) {
+      try {
+        const url = new URL(raw, window.location.href);
+        const host = url.hostname.replace(/^\[|\]$/g, "");
+        if (!LOCAL_HOSTS.has(host) && !isRelativeLocalPath(raw)) {
+          return null;
+        }
+
+        const href = url.href;
+        const kind = isImageUrl(url.pathname, hint) ? "image" : "file";
+        return {
+          href,
+          kind,
+          label: kind === "image" ? "Local image preview" : "Open local file: " + href
+        };
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function isRelativeLocalPath(value) {
+      return value.startsWith("/") || value.startsWith("./") || value.startsWith("../");
+    }
+
+    function looksLikeRenderableKey(key) {
+      return /image|file|attachment|url/i.test(key);
+    }
+
+    function isImageUrl(pathname, hint) {
+      return /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(pathname) || /image/i.test(hint || "");
+    }
+
+    function normalizeAttachments(attachments) {
+      return Array.isArray(attachments) ? attachments : [];
+    }
+
+    function formatTime(value) {
+      try {
+        return new Date(value).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function setBusy(isBusy, message, status) {
+      elements.sendButton.disabled = isBusy;
+      elements.messageInput.disabled = isBusy;
+      setStatus(message, status || (isBusy ? "busy" : "ready"));
+    }
+
+    function setStatus(message, mode) {
+      elements.statusText.textContent = message;
+      elements.statusbar.classList.remove("is-busy", "is-error");
+      if (mode === "busy") {
+        elements.statusbar.classList.add("is-busy");
+      } else if (mode === "error") {
+        elements.statusbar.classList.add("is-error");
+      }
+    }
+  </script>
 </body>
 </html>

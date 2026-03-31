@@ -271,7 +271,14 @@ When the corresponding services are running, these localhost URLs should work:
 - Admo health: <http://localhost:8000/api/v1/health>
 - Qdrant dashboard: <http://localhost:6333/dashboard>
 - Static files: <http://localhost:8080/>
+- Local chat demo: <http://localhost:8080/chat.html>
 - Docker-hosted Ollama: <http://localhost:11434/>
+
+The bundled `chat.html` page is an optional local-only tutorial UI for sending
+messages to a local webhook or API from the static-files container. Edit
+`DEFAULT_API_ENDPOINT` near the top of
+`shared/extracted-images/chat.html`, or change the endpoint in the page itself,
+to point it at your local n8n webhook or another localhost endpoint.
 
 With your n8n instance, you’ll have access to over 400 integrations and a
 suite of basic and advanced AI nodes such as
