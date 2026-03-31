@@ -34,6 +34,10 @@ x-n8n: &service-n8n
     - N8N_VERIFIED_PACKAGES_ENABLED=false
     - N8N_ENCRYPTION_KEY
     - N8N_USER_MANAGEMENT_JWT_SECRET
+    - N8N_LICENSE_ACTIVATION_KEY
+    - N8N_LICENSE_AUTO_RENEW_ENABLED
+    - N8N_LICENSE_SERVER_URL
+    - https_proxy_license_server
     - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
     - N8N_RESTRICT_FILE_ACCESS_TO=/data/shared
   env_file:
@@ -144,6 +148,7 @@ services:
         fi
     volumes:
       - ./n8n/demo-data:/demo-data
+      - ./pki:/opt/custom-certificates
     networks:
       backend:
     depends_on:
@@ -168,6 +173,7 @@ services:
       - ./n8n/demo-data:/demo-data
       - ./shared:/data/shared
       - ./shared/rag-files:/data/rag-files
+      - ./pki:/opt/custom-certificates
     depends_on:
       postgres:
         condition: service_healthy

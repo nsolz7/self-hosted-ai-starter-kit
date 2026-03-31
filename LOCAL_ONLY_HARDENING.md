@@ -321,7 +321,33 @@ Recommended operator actions before trusting sensitive data:
 
 ## Temporary online bootstrap flow
 
-If you intentionally need a one-time setup download before sensitive data is present:
+Use this only before sensitive data is present when you intentionally need setup-time outbound traffic such as:
+
+- first-run n8n owner setup with email registration
+- n8n license activation with `N8N_LICENSE_ACTIVATION_KEY`
+- one-time Ollama model pulls or other audited setup downloads
+
+Why this works:
+
+- `docker-compose.online-bootstrap.yml` changes `backend.internal` from `true` to `false`
+- host-facing services, including `n8n`, still keep `backend` as their default route
+- that means bootstrap mode restores the outbound path n8n needs for license activation without changing the normal hardened runtime file
+
+If your network uses TLS inspection or a private CA, place PEM files in `./pki/` before starting bootstrap mode. The n8n services mount that directory to `/opt/custom-certificates`, which is the path n8n uses for custom certificates.
+
+Example n8n setup and activation flow:
+
+```bash
+cp .env.example .env
+# Set secrets in .env, then optionally set N8N_LICENSE_ACTIVATION_KEY=...
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml up -d
+# Complete owner setup in the UI, then verify the license:
+docker compose exec -u node n8n n8n license:info
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
+docker compose up -d
+```
+
+Example CPU bootstrap for setup-time model staging:
 
 ```bash
 cp .env.example .env
@@ -337,6 +363,9 @@ This temporarily disables the `backend` no-egress network guardrail. Do not use 
 
 - n8n isolation guidance: <https://docs.n8n.io/hosting/configuration/configuration-examples/isolation/>
 - n8n node environment variables: <https://docs.n8n.io/hosting/configuration/environment-variables/nodes/>
+- n8n custom certificates: <https://docs.n8n.io/hosting/configuration/configuration-examples/custom-certificate-authority/>
+- n8n CLI commands: <https://docs.n8n.io/hosting/cli-commands/>
+- n8n community edition registration and activation: <https://docs.n8n.io/hosting/community-edition-features/>
 - Qdrant usage statistics: <https://qdrant.tech/documentation/guides/usage-statistics/>
 - Docling Serve configuration: <https://github.com/docling-project/docling-serve/blob/main/docs/configuration.md>
 - Docling Serve image build source: <https://github.com/docling-project/docling-serve/blob/main/Containerfile>

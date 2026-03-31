@@ -3,6 +3,8 @@
 # models or perform another audited setup-time download from inside a container.
 #
 # Example:
+# docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml up -d
+# Complete owner setup and, if configured, license activation while bootstrap mode is active.
 # docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile cpu up -d ollama-cpu
 # docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile cpu exec ollama-cpu ollama pull llama3.2
 # docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down

@@ -198,6 +198,52 @@ cp .env.example .env # replace all placeholder secrets before first run
 docker compose --profile cpu up
 ```
 
+### One-time bootstrap for owner setup, license activation, and model staging
+
+Use `docker-compose.online-bootstrap.yml` only before sensitive data is present, when you intentionally need outbound traffic during setup. In this repo, that includes:
+
+- first-run n8n setup if you want to use the community email-registration flow
+- applying `N8N_LICENSE_ACTIVATION_KEY` against the n8n license server
+- one-time Ollama model pulls or other audited setup downloads
+
+Supported first-run flow:
+
+1. Clone the repo and create `.env` from `.env.example`.
+2. Replace the placeholder secrets and passwords in `.env`.
+3. If you already have an n8n activation key, set `N8N_LICENSE_ACTIVATION_KEY` in `.env` before the first bootstrap start.
+4. If your network uses TLS inspection or a private CA, place PEM files in `./pki/` before starting n8n in bootstrap mode.
+5. Start the same stack you intend to use, but add the bootstrap override for this one-time setup phase:
+
+```bash
+# default stack
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml up -d
+
+# docling stack
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile docling up -d
+
+# full CPU stack
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml --profile cpu up -d
+```
+
+Add `--profile admo` to the bootstrap command too if you intend to keep Admo enabled.
+
+6. Open <http://localhost:5678/> and complete the one-time owner account setup.
+7. Verify activation in **Settings > Usage and plan** or with:
+
+```bash
+docker compose exec -u node n8n n8n license:info
+```
+
+8. If `N8N_LICENSE_ACTIVATION_KEY` was already configured, you do not need the UI **Sign up** or **Send me a free license key** flow. That UI path is for email-based registered community edition. If the license is active in **Usage and plan** or `license:info`, ignore that sign-up prompt.
+9. When setup is complete, stop the bootstrap stack and restart without the override so the hardened no-egress runtime is restored:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.online-bootstrap.yml down
+docker compose up -d
+```
+
+If you started with profiles, use the same profile set again on the final hardened restart. If activation fails with `unable to get local issuer certificate`, bootstrap mode is already providing egress; the missing piece is TLS trust, so add the required PEM certificate(s) under `./pki/` and restart the bootstrap run.
+
 ## ⚡️ Quick start and usage
 
 The core of the Self-hosted AI Starter Kit is a Docker Compose file, pre-configured with network and storage settings, minimizing the need for additional installations.
